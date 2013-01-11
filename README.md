@@ -1,4 +1,4 @@
-\\ Jest //
+# Jest
 
 A simple dependency injection library
 
