@@ -47,6 +47,6 @@ class User {
 	}
 }
 
-$object = $inector->create('User');
+$object = $injector->create('User');
 ```
 
