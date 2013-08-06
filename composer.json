@@ -1,6 +1,6 @@
 {
     "name": "jest/jest",
-	"type": "library",
+    "type": "library",
     "description": "A simple Dependency Injector",
     "license": "MIT",
     "authors": [
@@ -12,8 +12,8 @@
     "autoload": {
         "psr-0": {
             "Jest": "src/"
-		}
-	},
+        }
+    },
     "require": {
         "php": ">=5.3.0"
     }
