@@ -1,0 +1,20 @@
+{
+    "name": "jest/jest",
+	"type": "library",
+    "description": "A simple Dependency Injector",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jeff Turcotte",
+            "email": "jeff.turcotte@gmail.com"
+        }
+    ],
+    "autoload": {
+        "psr-0": {
+            "Jest": "src/"
+		}
+	},
+    "require": {
+        "php": ">=5.3.0"
+    }
+}
