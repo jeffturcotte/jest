@@ -74,6 +74,13 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 				$test->assertInstanceOf('Jest\\Injector', $injector);
 			}
 		);
+
+		$dummyClass = new DummyClass(function(){});
+
+		$test->assertInstanceOf('Closure', $injector->invoke(array($dummyClass, 'method')));
+		$test->assertInstanceOf('Closure', $injector->invoke('globalFunction'));
+		$test->assertInstanceOf('Closure', $injector->invoke('\Jest\DummyClass::staticMethod'));
+		$test->assertInstanceOf('Closure', $injector->invoke(array('\Jest\DummyClass', 'staticMethod')));
 	}
 
 	public function testCreate()
