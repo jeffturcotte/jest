@@ -16,6 +16,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 	public function testSetValidOffset()
 	{
 		$injector = new Injector();
+
 		$injector['Closure'] = function() {
 			return new Injector();
 		};
@@ -81,18 +82,6 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 		$test->assertInstanceOf('Closure', $injector->invoke('globalFunction'));
 		$test->assertInstanceOf('Closure', $injector->invoke('\Jest\DummyClass::staticMethod'));
 		$test->assertInstanceOf('Closure', $injector->invoke(array('\Jest\DummyClass', 'staticMethod')));
-	}
-
-	public function testCreate()
-	{
-		$test = $this;
-
-		$injector = new Injector();
-		$injector['Closure'] = function () { return function() {}; };
-
-		$object = $injector->create('Jest\\DummyClass');
-
-		$test->assertInstanceOf('Closure', $object->closure);
 	}
 
 	/**

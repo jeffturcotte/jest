@@ -35,6 +35,7 @@ namespace Jest;
  *
  * @package Jest
  * @author  Jeff Turcotte <jeff.turcotte@gmail.com>
+ * @version 1.0.0
  */
 class Injector implements \ArrayAccess
 {
@@ -43,174 +44,81 @@ class Injector implements \ArrayAccess
 
 
 	/**
-	 * Constructor
-	 *
-	 * @param Injector A jest injector from which to copy factories
-	 */
-	public function __construct(Injector $injector = NULL)
-	{
-		if ($injector) {
-			$this->factories = $jest->factories;	
-		}
-	}
-
-
-	/**
-	 * Instantiates an class and injects dependencies
-	 *
-	 * @param $class The class to instantiate
-	 *
-	 * @return mixed The instance
-	 */
-	public function create($class) {
-		if (!class_exists($class)) {
-			throw new \InvalidArgumentException("Class {$class} does not exist.");
-		}
-
-		$reflection = new \ReflectionClass($class);
-
-		if (!$reflection->isInstantiable()) {
-			throw new \InvalidArgumentException("{$class} is not instantiable.");
-		}
-
-		$arguments = array();
-
-		if ($reflection->hasMethod('__construct')) {
-			$constructor = $reflection->getMethod('__construct');
-			$arguments   = $this->gatherDependencyArguments($constructor->getParameters());
-		}
-
-		return $reflection->newInstanceArgs($arguments);
-	}
-
-
-	/**
-	 * Gets all dependences to be injected.
-	 * 
-	 * @param $parameters array An array of ReflectionParameter objects
-	 *
-	 * @return array The 
-	 */
-	protected function gatherDependencyArguments(array $parameters)
-	{
-		$arguments = array();
-
-		foreach($parameters as $param) {
-			$type = $param->getClass()->getName();
-
-			if (in_array($type, $this->resolving)) {
-				throw new \LogicException(
-					"$type is currently being resolved and cannot be used."
-				);
-			}
-
-			// If the argument allows NULL and hasn't been configured then pass NULL
-			if ($param->allowsNull() && !isset($this[$type])) {
-				$arguments[] = NULL;
-				continue;	
-			}
-
-			$arguments[] = $this[$type];
-		}
-
-		return $arguments;
-	}
-
-
-	/**
 	 * Invoke a callable and injects dependencies
 	 *
-	 * @param $callable mixed The Closure or object to inject dependencies into
+	 * @param $callable mixed
+	 *     The Closure or object to inject dependencies into
 	 *
-	 * @return mixed The value return from the callable
+	 * @return mixed
+	 *     The value return from the callable
 	 */
-	public function invoke($callable)
+	public function invoke(Callable $callable)
 	{
+		$arguments  = array();
+
 		if (is_string($callable) && strpos($callable, '::')) {
 			$callable = explode('::', $callable, 2);
 		}
 
-		try {
-			if (is_a($callable, 'Closure')) {
-				$reflection = new \ReflectionFunction(
-					$callable
-				);
-			} else if (is_object($callable)) {
-				$reflection = new \ReflectionMethod(
-					get_class($callable),
-					'__invoke'
-				);
-			} else if (is_array($callable) && count($callable) == 2) {
-				$reflection = new \ReflectionMethod(
-					(is_object($callable[0]) ? get_class($callable[0]) : $callable[0]),
-					$callable[1]
-				);
-			} else if (is_string($callable)) {
-				$reflection = new \ReflectionFunction(
-					$callable
-				);
-			} else {
-				throw new \ReflectionException();
-			}
-		} catch (\ReflectionException $e) {
-			var_dump($e->getMessage());
-			throw new \InvalidArgumentException(
-				'Supplied argument does not appear to be callable.'
-			);
-		}
+		$reflection = $this->reflectCallable($callable);
 		
-		$arguments = $this->gatherDependencyArguments(
-			$reflection->getParameters()
-		);
+		// collect the arguments for calling
+		foreach($reflection->getParameters() as $param) {
+			$type = $param->getClass()->getName();
+
+			if (in_array($type, $this->resolving)) {
+				throw new \LogicException("$type is currently being resolved and cannot be used.");
+			}
+
+		    $arguments[] = ($param->allowsNull() && !isset($this[$type])) ? null : $this[$type];
+		}
 
 		return call_user_func_array($callable, $arguments);
 	}
 
 
 	/**
-	 * Confirms if a type has been set
+	 * Confirms if a class has been set
 	 *
-	 * @param $type string The type to check
+	 * @param $class string
+	 *     The type to check
 	 * 
-	 * @return Boolean
+	 * @return boolean
 	 */
-	public function offsetExists($type)
+	public function offsetExists($class)
 	{
-		return isset($this->factories[$type]);
+		return isset($this->factories[$class]);
 	}
 
 
 	/**
-	 * Registers a dependency
+	 * Unsets a registered class
 	 *
-	 * @param $type string      The dependency type to register
-	 * @param $factory Callable The factory used to create the dependency
+	 * @param $class string
+	 *     The class to unset
 	 */
-	public function offsetSet($type, $factory)
+	public function offsetUnset($class)
 	{
-		if (!(is_object($factory) && is_callable($factory))) {
-			throw new \InvalidArgumentException('Factory must be a callable object.');
-		}
-
-		$this->factories[$type] = $factory;
+		unset($this->factories[$class]);
 	}
 
-
 	/**
-	 * Creates an object for a type
+	 * get a dependency for the supplied class
 	 *
-	 * @param $type string The type to get
+	 * @param $type string
+	 *     The type to get
 	 *
-	 * @return mixed The dependency/type value
+	 * @return mixed
+	 *     The dependency/type value
 	 */
-	public function offsetGet($type)
+	public function offsetGet($class)
 	{
-		if (!isset($this->factories[$type])) {
-			throw new \InvalidArgumentException("Type $type has not been defined");
+		if (!isset($this->factories[$class])) {
+			throw new \InvalidArgumentException("$class has not been defined");
 		}
 
-		array_push($this->resolving, $type);
-		$object = $this->invoke($this->factories[$type]);
+		array_push($this->resolving, $class);
+		$object = $this->invoke($this->factories[$class]);
 		array_pop($this->resolving);
 
 		return $object;
@@ -218,33 +126,73 @@ class Injector implements \ArrayAccess
 
 
 	/**
-	 * Unsets a type
+	 * Registers a dependency that is recreated for
+	 * every injection
 	 *
-	 * @param $type string The type to unset
+	 * @param $class string
+	 *     The class to register
+	 *
+	 * @param $factory Callable
+	 *     The factory used to create the dependency
 	 */
-	public function offsetUnset($type)
+	public function offsetSet($class, $factory)
 	{
-		unset($this->factories[$type]);
+		if (!is_callable($factory)) {
+			$factory = function() use ($factory) {
+				return $factory;
+			};
+		}
+
+		$this->factories[$class] = $factory;
 	}
 
 
 	/**
-	 * Shares a dependency type across all injections
+	 * A helper factory wrapper for sharing a dependency
 	 *
-	 * @param $factory Callable The factory to instantiate the class
+	 * @param $class Callable
+	 *     The factory to be registered
 	 *
-	 * @return mixed An instance of the type
+	 * @return Closure
+	 *     The factory used to create the dependency
 	 */
-	public function share($factory)
+	public function share(Callable $factory)
 	{
 		$self = $this;
 
-		return function() use ($factory, $self) {
+		return function() use ($self, $factory) {
 			static $instance;
 
-			return $instance = (is_null($instance))
-				? $self->invoke($factory)
-				: $instance;
+			if (is_null($instance)) {
+				$instance = $self->invoke($factory);
+			}
+
+			return $instance;
 		};
 	}
+
+
+	/**
+	 * Reflect a callable
+	 *
+	 * @param $callable Callable
+	 *     The callable to reflect
+	 *
+	 * @return ReflectionFunction|ReflectionMethod
+	 */
+	protected function reflectCallable(Callable $callable)
+	{
+		if (is_a($callable, 'Closure')) {
+			$reflection = new \ReflectionFunction($callable);
+		} else if (is_object($callable)) {
+			$reflection = new \ReflectionMethod(get_class($callable), '__invoke');
+		} else if (is_array($callable) && count($callable) == 2) {
+			$reflection = new \ReflectionMethod((is_object($callable[0]) ? get_class($callable[0]) : $callable[0]), $callable[1]);
+		} else if (is_string($callable) && function_exists($callable)) {
+			$reflection = new \ReflectionFunction($callable);
+		}
+
+		return $reflection;
+	}
+
 }
