@@ -2,7 +2,7 @@
 
 A simple dependency injection library
 
-[![Build Status](https://travis-ci.org/jeffturcotte/jest.png)](https://travis-ci.org/jeffturcotte/jest)
+[![Build Status](https://travis-ci.org/jeffturcotte/jest.png?branch=master)](https://travis-ci.org/jeffturcotte/jest)
 
 Jest looks to find the middle ground between the simplicity offered by tiny
 service locators like Pimple and the real dependency injection libraries like PHP-DI
