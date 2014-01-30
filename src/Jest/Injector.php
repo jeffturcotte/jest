@@ -21,13 +21,13 @@ namespace Jest;
  *
  * $injector = new Jest\Injector();
  *
- * $injector['Request'] = $injector->share(function() {
+ * $injector['Request'] = function() {
  *     return new Request();
- * });
+ * };
  *
- * $injector['Session'] = $injector->share(function(Request $req) {
+ * $injector['Session'] = function(Request $req) {
  *     return new Session($req);
- * });
+ * };
  *
  * $value = $injector->invoke(function(Request $req, Session $sess) {
  *     return array($req, $sess);
@@ -39,9 +39,9 @@ namespace Jest;
  */
 class Injector implements \ArrayAccess
 {
-	protected $factories = array();
-	protected $resolving = array();
-
+	protected $factories = [];
+	protected $resolving = [];
+	protected $instances = [];
 
 	/**
 	 * Invoke a callable and injects dependencies
@@ -54,26 +54,21 @@ class Injector implements \ArrayAccess
 	 */
 	public function invoke(Callable $callable)
 	{
-		$arguments  = array();
-
-		if (is_string($callable) && strpos($callable, '::')) {
-			$callable = explode('::', $callable, 2);
-		}
-
 		$reflection = $this->reflectCallable($callable);
-		
-		// collect the arguments for calling
+
+		$args = [];
+
 		foreach($reflection->getParameters() as $param) {
 			$type = $param->getClass()->getName();
 
 			if (in_array($type, $this->resolving)) {
-				throw new \LogicException("$type is currently being resolved and cannot be used.");
+				throw new \LogicException("Recursive dependency: $type is currently instatiating.");
 			}
 
-		    $arguments[] = ($param->allowsNull() && !isset($this[$type])) ? null : $this[$type];
+			$args[] = ($param->allowsNull() && !isset($this[$type])) ? null : $this[$type];
 		}
 
-		return call_user_func_array($callable, $arguments);
+		return call_user_func_array($callable, $args);
 	}
 
 
@@ -102,6 +97,7 @@ class Injector implements \ArrayAccess
 		unset($this->factories[$class]);
 	}
 
+
 	/**
 	 * get a dependency for the supplied class
 	 *
@@ -113,8 +109,12 @@ class Injector implements \ArrayAccess
 	 */
 	public function offsetGet($class)
 	{
-		if (!isset($this->factories[$class])) {
+		if (!isset($this->factories[$class]) && !isset($this->instances[$class])) {
 			throw new \InvalidArgumentException("$class has not been defined");
+		}
+
+		if (isset($this->instances[$class])) {
+			return $this->instances[$class];
 		}
 
 		array_push($this->resolving, $class);
@@ -126,49 +126,25 @@ class Injector implements \ArrayAccess
 
 
 	/**
-	 * Registers a dependency that is recreated for
-	 * every injection
+	 * Registers a dependency for injection
+	 *
+	 * @throws \InvalidArgumentException
 	 *
 	 * @param $class string
 	 *     The class to register
 	 *
-	 * @param $factory Callable
-	 *     The factory used to create the dependency
+	 * @param $factory mixed A callable or object
+	 *     The factory used to create the dependency or the instance of the dependency
 	 */
 	public function offsetSet($class, $factory)
 	{
-		if (!is_callable($factory)) {
-			$factory = function() use ($factory) {
-				return $factory;
-			};
+		if (is_callable($factory)) {
+			$this->factories[$class] = $factory;
+		} else if (is_object($factory)) {
+			$this->instances[$class] = $factory;
+		} else {
+			throw new \InvalidArgumentException("Dependency supplied is neither a callable or an object");
 		}
-
-		$this->factories[$class] = $factory;
-	}
-
-
-	/**
-	 * A helper factory wrapper for sharing a dependency
-	 *
-	 * @param $class Callable
-	 *     The factory to be registered
-	 *
-	 * @return Closure
-	 *     The factory used to create the dependency
-	 */
-	public function share(Callable $factory)
-	{
-		$self = $this;
-
-		return function() use ($self, $factory) {
-			static $instance;
-
-			if (is_null($instance)) {
-				$instance = $self->invoke($factory);
-			}
-
-			return $instance;
-		};
 	}
 
 
@@ -180,8 +156,12 @@ class Injector implements \ArrayAccess
 	 *
 	 * @return ReflectionFunction|ReflectionMethod
 	 */
-	protected function reflectCallable(Callable $callable)
+	protected function reflectCallable($callable)
 	{
+		if (is_string($callable) && strpos($callable, '::')) {
+			$callable = explode('::', $callable, 2);
+		}
+
 		if (is_a($callable, 'Closure')) {
 			$reflection = new \ReflectionFunction($callable);
 		} else if (is_object($callable)) {
@@ -194,5 +174,4 @@ class Injector implements \ArrayAccess
 
 		return $reflection;
 	}
-
 }

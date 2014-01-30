@@ -26,6 +26,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 		$this->assertInstanceOf('Jest\\Injector', $injector['CallableObject']);
 	}
 
+
 	/**
      * @expectedException \InvalidArgumentException
 	 */
@@ -34,6 +35,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 		$injector = new Injector();
 		$injector['Injector'] = 'Not Allowed';
 	}
+
 
 	/**
      * @expectedException \InvalidArgumentException
@@ -44,6 +46,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 		$injector['Invalid'];
 	}
 
+
 	public function testIsset()
 	{
 		$injector = new Injector();
@@ -51,6 +54,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 
 		$this->assertEquals(TRUE, isset($injector['Test']));
 	}
+
 
 	public function testUnset()
 	{
@@ -60,6 +64,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 
 		$this->assertEquals(FALSE, isset($injector['Test']));
 	}
+
 
 	public function testInvoke()
 	{
@@ -83,6 +88,7 @@ class InjectorTest extends \PHPUnit_Framework_TestCase
 		$test->assertInstanceOf('Closure', $injector->invoke('\Jest\DummyClass::staticMethod'));
 		$test->assertInstanceOf('Closure', $injector->invoke(array('\Jest\DummyClass', 'staticMethod')));
 	}
+
 
 	/**
      * @expectedException \Exception
