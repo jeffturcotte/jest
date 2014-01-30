@@ -19,34 +19,17 @@ $injector = new Jest\Injector();
 
 // configure your shared dependencies
 
-$injector['Request'] = $injector->share(function() {
+$injector['Request'] = function() {
 	return new Request();
-});
+};
 
-$injector['Session'] = $injector->share(function(Request $req) {
+$injector['Session'] = function(Request $req) {
 	return new Session($req);
-});
-
-// configure a non-shared dependency
-
-$injector['Response'] = function(Data $data) {
-	return new Response($data);
-}
+};
 
 // invoke a callable with the dependencies
 
 $returnValue = $injector->invoke(function(Request $req, Session $sess) {
 	return array($req, $sess);
 });
-
-// instantiate a class with the dependencies
-
-class User {
-	public function __construct(Session $sess) {
-		
-	}
-}
-
-$object = $injector->create('User');
-```
 
